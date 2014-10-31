@@ -118,9 +118,9 @@ static void process(const char *name,
 			continue;
 		}
 
-		FAILIF(rc < chunk_sz && i < num_chunks - 1,
-		       "Unexpected chunk size %u for chunk %lu (out of %lu)!\n",
-		       rc, i, num_chunks);
+		FAILIF(rc < chunk_sz && num_chunks > 1 && i < num_chunks - 1,
+		       "Unexpected chunk size %u for chunk %lu (out of %lu) of file [%s]!\n",
+		       rc, i, num_chunks, name);
 
 		SHA1(chunk, rc, sha);
 

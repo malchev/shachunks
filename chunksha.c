@@ -18,20 +18,22 @@
 } while(0)
 
 static void help(const char *prog, int err) {
-	printf("%s: [-c <chunk-size-in-bytes>] [-z] <list-of-files>\n"          \
+	printf("%s: [-c <chunk-size-in-bytes>] [-z] [-f] <list-of-files>\n"     \
 	       "    break up every file in the provided list into chunks and\n" \
 	       "    print each chunk's SHA1 hash, the file it came from, and\n" \
 	       "    its file offset, while potentially ignoring those chunks\n" \
 	       "    that are all zeroes.\n\n"                                   \
-	       "    <chunk-size-in-bytes> defaults to 512\n"                    \
-	       "    <list-of-files>       must not be empty\n",
+	       "    -q                       quiet (only print SHAs)\n"         \
+	       "    -c <chunk-size>          defaults to 512\n"                 \
+	       "    <list-of-files>          must not be empty\n",
 	       prog);
 	_exit(err);
 }
 
 static void process(const char *name,
 		    void *chunk, size_t chunk_sz,
-		    const unsigned char *ignore);
+		    const unsigned char *ignore,
+		    int quiet);
 
 
 int main (int argc, char **argv)
@@ -40,10 +42,11 @@ int main (int argc, char **argv)
 	size_t chunk_sz = 512;
 	void *chunk;
 	unsigned char *ignore = NULL, ignore_sha[SHA_DIGEST_LENGTH];
+	int quiet = 1;
 
 	int opt;
 	do {
-		opt = getopt(argc, argv, "c:zh");
+		opt = getopt(argc, argv, "c:zhq");
 		switch (opt) {
 			case 'c':
 				FAILIF(1 != sscanf(optarg, "%lu", &chunk_sz), "Invalid chunk-size string\n");
@@ -52,9 +55,11 @@ int main (int argc, char **argv)
 			case 'z':
 				ignore = ignore_sha;
 				break;
+			case 'q':
+				quiet = 0;
+				break;
 			case '?':
-				fprintf(stderr, "unknown command-line option %c\n", optopt);
-				// fall through
+				/* fall through */
 			case 'h':
 				help(*argv, opt == '?');
 				break;
@@ -75,7 +80,7 @@ int main (int argc, char **argv)
 	}
 
 	while (*files) {
-		process(*files, chunk, chunk_sz, ignore);
+		process(*files, chunk, chunk_sz, ignore, quiet);
 		files++;
 	}
 
@@ -84,7 +89,8 @@ int main (int argc, char **argv)
 
 static void process(const char *name,
 		    void *chunk, size_t chunk_sz,
-		    const unsigned char *ignore)
+		    const unsigned char *ignore,
+		    int quiet)
 {
 	int fd;
 	int rc;
@@ -123,12 +129,21 @@ static void process(const char *name,
 			continue;
 		}
 
-		printf("%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x %8ld %s\n",
-		       sha[ 0], sha[ 1], sha[ 2], sha[ 3], sha[ 4],
-		       sha[ 5], sha[ 6], sha[ 7], sha[ 8], sha[ 9],
-		       sha[10], sha[11], sha[12], sha[13], sha[14],
-		       sha[15], sha[16], sha[17], sha[18], sha[19],
-		       i * chunk_sz, name);
+		if (quiet)
+			printf("%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x"\
+			       "%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x %8ld %s\n",
+			       sha[ 0], sha[ 1], sha[ 2], sha[ 3], sha[ 4],
+			       sha[ 5], sha[ 6], sha[ 7], sha[ 8], sha[ 9],
+			       sha[10], sha[11], sha[12], sha[13], sha[14],
+			       sha[15], sha[16], sha[17], sha[18], sha[19],
+			       i * chunk_sz, name);
+		else
+			printf("%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x"\
+			       "%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x\n",
+			       sha[ 0], sha[ 1], sha[ 2], sha[ 3], sha[ 4],
+			       sha[ 5], sha[ 6], sha[ 7], sha[ 8], sha[ 9],
+			       sha[10], sha[11], sha[12], sha[13], sha[14],
+			       sha[15], sha[16], sha[17], sha[18], sha[19]);
 
 		i++;
 	}
